@@ -92,7 +92,6 @@ async function getCompanyName(req?: { query?: any }): Promise<{
     address: process.env.COMPANY_ADDRESS || '',
     gstin: process.env.COMPANY_GSTIN || '',
   };
-
   const qName = req?.query?.companyName
     ? String(req.query.companyName).trim()
     : '';
@@ -105,7 +104,6 @@ async function getCompanyName(req?: { query?: any }): Promise<{
       gstin: req?.query?.gstin ? String(req.query.gstin) : fallback.gstin,
     };
   }
-
   try {
     const r: any = await db.execute(sql`
       SELECT key, value FROM settings
@@ -125,7 +123,6 @@ async function getCompanyName(req?: { query?: any }): Promise<{
   } catch {
     /* no settings table */
   }
-
   return fallback;
 }
 
@@ -135,25 +132,25 @@ async function nextInvoiceNo(prefix: string): Promise<string> {
     .from(invoiceSequences)
     .where(eq(invoiceSequences.prefix, prefix))
     .limit(1);
-
   if (!seq) {
     await db.insert(invoiceSequences).values({ prefix, currentNumber: 1, padding: 6 });
     return prefix + String(1).padStart(6, '0');
   }
-
   const next = (seq.currentNumber || 0) + 1;
   await db
     .update(invoiceSequences)
     .set({ currentNumber: next })
     .where(eq(invoiceSequences.id, seq.id));
-
   return prefix + String(next).padStart(seq.padding || 6, '0');
 }
 
 // LIST
 router.get('/', async (req, res, next) => {
   try {
-    const { page = '1', limit = '50' } = req.query;
+    const { page = '1', limit = '50' } = req.query as {
+      page?: string;
+      limit?: string;
+    };
     const pageNum = Math.max(1, parseInt(page as string, 10));
     const limitNum = Math.min(500, Math.max(1, parseInt(limit as string, 10)));
     const offset = (pageNum - 1) * limitNum;
@@ -176,7 +173,6 @@ router.get('/', async (req, res, next) => {
         status: sales.status,
         createdAt: sales.createdAt,
       })
-      
       .from(sales)
       .leftJoin(customers, eq(sales.customerId, customers.id))
       .orderBy(desc(sales.createdAt))
@@ -193,7 +189,6 @@ router.get('/', async (req, res, next) => {
 router.get('/:id/pdf', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-
     const [sale] = await db
       .select({
         id: sales.id,
@@ -252,16 +247,16 @@ router.get('/:id/pdf', async (req, res, next) => {
           company.gstin ? `GSTIN: ${company.gstin}` : '',
         ]
           .filter(Boolean)
-          .join('  ·  '),
+          .join(' · '),
         { align: 'center' }
       );
     }
     doc.moveDown();
     doc.fontSize(11);
     doc.text(`Invoice No : ${sale.invoiceNo}`);
-    doc.text(`Date       : ${sale.invoiceDate}`);
-    doc.text(`Customer   : ${sale.customerName || '-'}`);
-    if (sale.customerMobile) doc.text(`Mobile     : ${sale.customerMobile}`);
+    doc.text(`Date : ${sale.invoiceDate}`);
+    doc.text(`Customer : ${sale.customerName || '-'}`);
+    if (sale.customerMobile) doc.text(`Mobile : ${sale.customerMobile}`);
     doc.moveDown();
 
     const startY = doc.y;
@@ -291,17 +286,18 @@ router.get('/:id/pdf', async (req, res, next) => {
 
     doc.moveDown(2);
     doc.fontSize(11).font('Helvetica-Bold');
-    doc.text(`Total Fine     : ${Number(sale.totalFine || 0).toFixed(4)} g`);
+    doc.text(`Total Fine : ${Number(sale.totalFine || 0).toFixed(4)} g`);
     doc.text(
-      `Grand Total    : ₹ ${Number(sale.grandTotal || 0).toLocaleString('en-IN')}`
+      `Grand Total : ₹ ${Number(sale.grandTotal || 0).toLocaleString('en-IN')}`
     );
     doc.text(
-      `Paid Amount    : ₹ ${Number(sale.paidAmount || 0).toLocaleString('en-IN')}`
+      `Paid Amount : ₹ ${Number(sale.paidAmount || 0).toLocaleString('en-IN')}`
     );
     doc.text(
-      `Due Amount     : ₹ ${Number(sale.dueAmount || 0).toLocaleString('en-IN')}`
+      `Due Amount : ₹ ${Number(sale.dueAmount || 0).toLocaleString('en-IN')}`
     );
-    doc.text(`Status         : ${sale.status}`);
+    doc.text(`Status : ${sale.status}`);
+
     doc.moveDown(2);
     doc.fontSize(9).font('Helvetica').text('Thank you for your business!', {
       align: 'center',
@@ -318,7 +314,6 @@ router.get('/:id', async (req, res, next) => {
     const id = parseInt(req.params.id, 10);
     const [sale] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
     if (!sale) throw new AppError('Sale not found', 404);
-
     const lines = await db.select().from(saleItems).where(eq(saleItems.saleId, id));
     res.json({ success: true, data: { ...sale, items: lines } });
   } catch (err) {
@@ -334,7 +329,6 @@ router.patch(
     try {
       const id = parseInt(req.params.id, 10);
       const body = updateSaleSchema.parse(req.body);
-
       const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
       if (!existing) throw new AppError('Sale not found', 404);
 
