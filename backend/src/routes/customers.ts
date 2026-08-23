@@ -32,7 +32,12 @@ const customerSchema = z.object({
 // List + Search
 router.get('/', async (req, res, next) => {
   try {
-    const { search, status, page = '1', limit = '50' } = req.query;
+    const { search, status, page = '1', limit = '50' } = req.query as {
+      search?: string;
+      status?: string;
+      page?: string;
+      limit?: string;
+    };
     const pageNum = Math.max(1, parseInt(page as string, 10));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
     const offset = (pageNum - 1) * limitNum;
@@ -68,7 +73,6 @@ router.get('/', async (req, res, next) => {
     if (status) {
       conditions.push(eq(customers.status, status as 'active' | 'inactive'));
     }
-
     if (conditions.length) {
       query = query.where(sql`${sql.join(conditions, sql` AND `)}`);
     }
@@ -199,7 +203,6 @@ router.patch('/:id/status', authorize('customers.edit', 'customers.*'), async (r
   try {
     const id = parseInt(req.params.id, 10);
     const { status } = req.body as { status?: 'active' | 'inactive' };
-
     if (status !== 'active' && status !== 'inactive') {
       throw new AppError('Status must be active or inactive', 400);
     }
@@ -211,7 +214,6 @@ router.patch('/:id/status', authorize('customers.edit', 'customers.*'), async (r
       .returning();
 
     if (!updated) throw new AppError('Customer not found', 404);
-
     res.json({
       success: true,
       message: status === 'active' ? 'Customer activated' : 'Customer deactivated',
@@ -226,7 +228,7 @@ router.patch('/:id/status', authorize('customers.edit', 'customers.*'), async (r
 router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const hard = String(req.query.hard || '') === 'true';
+    const hard = String((req.query as { hard?: string }).hard || '') === 'true';
 
     if (hard) {
       // Check if customer has sales
@@ -234,7 +236,6 @@ router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, 
         .select({ count: sql`COUNT(*)`.mapWith(String) })
         .from(sales)
         .where(eq(sales.customerId, id));
-
       const salesNum = parseInt(String(saleCount?.count || '0'), 10);
 
       // Check ledger entries
@@ -244,7 +245,6 @@ router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, 
         .where(
           sql`${ledgerEntries.partyType} = 'customer' AND ${ledgerEntries.partyId} = ${id}`
         );
-
       const ledgerNum = parseInt(String(ledgerCount?.count || '0'), 10);
 
       if (salesNum > 0 || ledgerNum > 0) {
@@ -262,7 +262,6 @@ router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, 
         .returning();
 
       if (!deleted) throw new AppError('Customer not found', 404);
-
       return res.json({
         success: true,
         message: 'Customer permanently deleted',
@@ -277,15 +276,11 @@ router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, 
       .returning();
 
     if (!updated) throw new AppError('Customer not found', 404);
-
     res.json({ success: true, message: 'Customer deactivated' });
   } catch (err) {
     next(err);
   }
 });
-
-
-  
 
 // ========== Customer Account / Ledger ==========
 
@@ -313,7 +308,10 @@ router.get('/lookup/list', async (_req, res, next) => {
 router.get('/:id/account', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const { fromDate, toDate } = req.query;
+    const { fromDate, toDate } = req.query as {
+      fromDate?: string;
+      toDate?: string;
+    };
 
     const [customer] = await db
       .select()
@@ -327,6 +325,7 @@ router.get('/:id/account', async (req, res, next) => {
       sql`${ledgerEntries.partyType} = 'customer'`,
       sql`${ledgerEntries.partyId} = ${id}`,
     ];
+
     if (fromDate) {
       conditions.push(sql`${ledgerEntries.entryDate} >= ${String(fromDate)}`);
     }
@@ -353,7 +352,6 @@ router.get('/:id/account', async (req, res, next) => {
 
     const openingBal = parseFloat(customer.openingBalance || '0');
     const openingFine = parseFloat(customer.openingFine || '0');
-
     let runBal = openingBal;
     let runFine = openingFine;
     let totalDebit = 0;
@@ -364,10 +362,12 @@ router.get('/:id/account', async (req, res, next) => {
       const credit = parseFloat(String(e.credit || 0));
       const fDebit = parseFloat(String(e.fineDebit || 0));
       const fCredit = parseFloat(String(e.fineCredit || 0));
+
       totalDebit += debit;
       totalCredit += credit;
       runBal = runBal + debit - credit;
       runFine = runFine + fDebit - fCredit;
+
       return {
         ...e,
         debit,
@@ -407,4 +407,5 @@ router.get('/:id/account', async (req, res, next) => {
     next(err);
   }
 });
+
 export default router;
