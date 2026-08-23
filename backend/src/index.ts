@@ -93,7 +93,7 @@ app.use('/api/reset', resetRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`\n  Ritik Chains API running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n  Ritik Chains API running on port ${PORT}`);
   console.log(`  Developed by ToolClub.website\n`);
 });
