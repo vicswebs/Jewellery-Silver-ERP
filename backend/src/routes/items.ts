@@ -56,7 +56,6 @@ function stockFromBody(body: {
     body.currentFine != null && String(body.currentFine) !== ''
       ? parseFloat(String(body.currentFine)) || 0
       : (stockG * purity) / 100;
-
   return {
     currentQty: String(stockG),
     currentNet: String(stockG),
@@ -68,7 +67,13 @@ function stockFromBody(body: {
 // ==================== LIST ====================
 router.get('/', async (req, res, next) => {
   try {
-    const { search, categoryId, status, page = '1', limit = '50' } = req.query;
+    const { search, categoryId, status, page = '1', limit = '50' } = req.query as {
+      search?: string;
+      categoryId?: string;
+      status?: string;
+      page?: string;
+      limit?: string;
+    };
     const pageNum = Math.max(1, parseInt(page as string, 10));
     const limitNum = Math.min(500, Math.max(1, parseInt(limit as string, 10)));
     const offset = (pageNum - 1) * limitNum;
@@ -106,7 +111,6 @@ router.get('/', async (req, res, next) => {
     }
     if (categoryId) conditions.push(eq(items.categoryId, parseInt(categoryId as string, 10)));
     if (status) conditions.push(eq(items.status, status as 'active' | 'inactive'));
-
     if (conditions.length) {
       query = query.where(sql`${sql.join(conditions, sql` AND `)}`);
     }
@@ -134,6 +138,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', authorize('items.create', 'items.*'), async (req, res, next) => {
   try {
     const body = itemSchema.parse(req.body);
+
     let code = body.code;
     if (!code) {
       const [last] = await db
@@ -243,7 +248,6 @@ router.patch('/:id/status', authorize('items.edit', 'items.*'), async (req, res,
   try {
     const id = parseInt(req.params.id, 10);
     const { status } = req.body as { status?: 'active' | 'inactive' };
-
     if (status !== 'active' && status !== 'inactive') {
       throw new AppError('Status must be active or inactive', 400);
     }
@@ -255,7 +259,6 @@ router.patch('/:id/status', authorize('items.edit', 'items.*'), async (req, res,
       .returning();
 
     if (!updated) throw new AppError('Item not found', 404);
-
     res.json({
       success: true,
       message: status === 'active' ? 'Item activated' : 'Item deactivated',
@@ -270,14 +273,13 @@ router.patch('/:id/status', authorize('items.edit', 'items.*'), async (req, res,
 router.delete('/:id', authorize('items.delete', 'items.*'), async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const hard = String(req.query.hard || '') === 'true';
+    const hard = String((req.query as { hard?: string }).hard || '') === 'true';
 
     if (hard) {
       const [saleCount] = await db
         .select({ count: sql`COUNT(*)`.mapWith(String) })
         .from(saleItems)
         .where(eq(saleItems.itemId, id));
-
       const count = parseInt(String(saleCount?.count || '0'), 10);
 
       if (count > 0) {
@@ -289,7 +291,6 @@ router.delete('/:id', authorize('items.delete', 'items.*'), async (req, res, nex
 
       const [deleted] = await db.delete(items).where(eq(items.id, id)).returning();
       if (!deleted) throw new AppError('Item not found', 404);
-
       return res.json({ success: true, message: 'Item permanently deleted' });
     }
 
