@@ -9,3 +9,5 @@ coverage/
 *.local
 electron/dist/
 backend/src/db/migrations/
+.env.backup
+*.env.backup
