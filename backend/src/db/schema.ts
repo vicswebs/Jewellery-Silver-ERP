@@ -25,7 +25,7 @@ export const transactionStatusEnum = pgEnum('transaction_status', [
   'cancelled',
   'reversed',
 ]);
-export const paymentModeEnum = pgEnum('payment_mode', ['cash', 'bank', 'fine', 'roopu', 'adjustment']);
+export const paymentModeEnum = pgEnum('payment_mode', ['cash', 'bank', 'fine', 'roopu', 'adjustment', 'rtgs', 'cheque']);
 export const ledgerTypeEnum = pgEnum('ledger_type', [
   'sale',
   'purchase',
@@ -38,6 +38,7 @@ export const ledgerTypeEnum = pgEnum('ledger_type', [
   'adjustment',
   'opening',
   'stock_adjustment',
+  'received_fine',
 ]);
 export const metalTypeEnum = pgEnum('metal_type', ['fine', 'roopu', 'silver', 'gold', 'other']);
 
