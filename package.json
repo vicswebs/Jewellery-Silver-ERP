@@ -1,0 +1,33 @@
+{
+  "name": "ritik-chains",
+  "version": "1.0.0",
+  "description": "Ritik Chains — Jewellery & Silver Billing, Inventory & Accounting ERP by ToolClub.website",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "electron",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:electron": "npm run dev --workspace=electron",
+    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
+    "db:generate": "npm run db:generate --workspace=backend",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:studio": "npm run db:studio --workspace=backend",
+    "db:seed": "npm run db:seed --workspace=backend",
+    "setup": "npm install && npm run db:generate && npm run db:migrate && npm run db:seed",
+    "start": "npm run start --workspace=backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "ToolClub.website",
+  "license": "UNLICENSED"
+}
