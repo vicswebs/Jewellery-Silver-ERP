@@ -53,8 +53,7 @@ router.post('/login', async (req, res, next) => {
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback-secret', {
-  expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
-});
+      expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
     });
 
     // Update last login
@@ -127,18 +126,19 @@ router.post('/change-password', authenticate, async (req, res, next) => {
     if (String(newPassword).length < 4) {
       return res.status(400).json({ success: false, message: 'New password too short' });
     }
+
     const userId = (req as any).user?.id;
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-  const ok = await bcrypt.compare(
-  String(currentPassword),
-  user.passwordHash
-);
+    const ok = await bcrypt.compare(String(currentPassword), user.passwordHash);
     if (!ok) return res.status(400).json({ success: false, message: 'Current password wrong' });
 
     const hash = await bcrypt.hash(String(newPassword), 10);
-    await db.update(users).set({ passwordHash: hash /* or password: hash */ } as any).where(eq(users.id, userId));
+    await db
+      .update(users)
+      .set({ passwordHash: hash } as any)
+      .where(eq(users.id, userId));
 
     res.json({ success: true, message: 'Password updated' });
   } catch (err) {
