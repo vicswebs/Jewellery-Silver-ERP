@@ -191,7 +191,7 @@ router.post('/', authorize('items.create', 'items.*'), async (req, res, next) =>
 // ==================== UPDATE ====================
 router.put('/:id', authorize('items.edit', 'items.*'), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id, 10);
     const body = itemSchema.partial().parse(req.body);
 
     const patch: Record<string, unknown> = {
@@ -246,7 +246,7 @@ router.put('/:id', authorize('items.edit', 'items.*'), async (req, res, next) =>
 // ==================== TOGGLE STATUS ====================
 router.patch('/:id/status', authorize('items.edit', 'items.*'), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id, 10);
     const { status } = req.body as { status?: 'active' | 'inactive' };
     if (status !== 'active' && status !== 'inactive') {
       throw new AppError('Status must be active or inactive', 400);
@@ -272,7 +272,7 @@ router.patch('/:id/status', authorize('items.edit', 'items.*'), async (req, res,
 // ==================== DELETE (Soft + Hard) ====================
 router.delete('/:id', authorize('items.delete', 'items.*'), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id, 10);
     const hard = String((req.query as { hard?: string }).hard || '') === 'true';
 
     if (hard) {
