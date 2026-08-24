@@ -50,7 +50,7 @@ const saleSchema = z.object({
   kasar: z.union([z.string(), z.number()]).optional().default(0),
   paidAmount: z.union([z.string(), z.number()]).optional().default(0),
   paymentMode: z
-    .enum(['cash', 'bank', 'fine', 'roopu', 'adjustment', 'rtgs', 'upi', 'cheque'])
+    .enum(['cash', 'bank', 'fine', 'roopu', 'adjustment', 'rtgs','cheque'])
     .optional(),
   notes: z.string().optional().nullable(),
   receivedSilver: z
