@@ -20,20 +20,15 @@ import reportRoutes from './routes/reports.js';
 import settingsRoutes from './routes/settings.js';
 import userRoutes from './routes/users.js';
 import dashboardRoutes from './routes/dashboard.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { notFound } from './middleware/notFound.js';
 import silverRoutes from './routes/silver.js';
 import resetRoutes from './routes/reset.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { notFound } from './middleware/notFound.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 
 // Security
 app.use(helmet());
@@ -89,14 +84,13 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/silver', silverRoutes);
-
-// ...
 app.use('/api/reset', resetRoutes);
 
 // 404 & Error handler
 app.use(notFound);
 app.use(errorHandler);
 
+// Single listen — required for Render (PORT + 0.0.0.0)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  Ritik Chains API running on port ${PORT}`);
   console.log(`  Developed by ToolClub.website\n`);
