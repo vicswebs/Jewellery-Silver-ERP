@@ -52,9 +52,9 @@ router.post('/login', async (req, res, next) => {
       permissions: (user.permissions as string[]) || [],
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback-secret', {
-      expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
-    });
+   const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback-secret', {
+    expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
+   });
 
     // Update last login
     await db
