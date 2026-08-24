@@ -327,7 +327,7 @@ router.patch(
   authorize('sales.update', 'sales.edit', 'sales.*'),
   async (req, res, next) => {
     try {
-      const id = parseInt(req.params.id, 10);
+      const id = parseInt(String(req.params.id, 10);
       const body = updateSaleSchema.parse(req.body);
       const [existing] = await db.select().from(sales).where(eq(sales.id, id)).limit(1);
       if (!existing) throw new AppError('Sale not found', 404);
