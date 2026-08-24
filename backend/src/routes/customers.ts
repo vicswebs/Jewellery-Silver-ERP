@@ -38,6 +38,7 @@ router.get('/', async (req, res, next) => {
       page?: string;
       limit?: string;
     };
+
     const pageNum = Math.max(1, parseInt(page as string, 10));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
     const offset = (pageNum - 1) * limitNum;
@@ -60,8 +61,10 @@ router.get('/', async (req, res, next) => {
       .$dynamic();
 
     const conditions = [];
+
     if (search) {
       const s = `%${search}%`;
+
       conditions.push(
         or(
           ilike(customers.name, s),
@@ -70,11 +73,17 @@ router.get('/', async (req, res, next) => {
         )
       );
     }
+
     if (status) {
-      conditions.push(eq(customers.status, status as 'active' | 'inactive'));
+      conditions.push(
+        eq(customers.status, status as 'active' | 'inactive')
+      );
     }
+
     if (conditions.length) {
-      query = query.where(sql`${sql.join(conditions, sql` AND `)}`);
+      query = query.where(
+        sql`${sql.join(conditions, sql` AND `)}`
+      );
     }
 
     const data = await query
@@ -82,7 +91,12 @@ router.get('/', async (req, res, next) => {
       .limit(limitNum)
       .offset(offset);
 
-    res.json({ success: true, data, page: pageNum, limit: limitNum });
+    res.json({
+      success: true,
+      data,
+      page: pageNum,
+      limit: limitNum,
+    });
   } catch (err) {
     next(err);
   }
@@ -92,13 +106,16 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
+
     const [customer] = await db
       .select()
       .from(customers)
       .where(eq(customers.id, id))
       .limit(1);
 
-    if (!customer) throw new AppError('Customer not found', 404);
+    if (!customer) {
+      throw new AppError('Customer not found', 404);
+    }
 
     // Simple balance calculation from ledger
     const [balance] = await db
@@ -135,152 +152,242 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create
-router.post('/', authorize('customers.create', 'customers.*'), async (req, res, next) => {
-  try {
-    const body = customerSchema.parse(req.body);
+router.post(
+  '/',
+  authorize('customers.create', 'customers.*'),
+  async (req, res, next) => {
+    try {
+      const body = customerSchema.parse(req.body);
 
-    // Auto code if not provided
-    let code = body.code;
-    if (!code) {
-      const [last] = await db
-        .select({ code: customers.code })
-        .from(customers)
-        .orderBy(desc(customers.id))
-        .limit(1);
-      const nextNum = last ? parseInt(last.code.replace(/\D/g, '') || '0', 10) + 1 : 1;
-      code = `C${String(nextNum).padStart(5, '0')}`;
+      // Auto code if not provided
+      let code = body.code;
+
+      if (!code) {
+        const [last] = await db
+          .select({ code: customers.code })
+          .from(customers)
+          .orderBy(desc(customers.id))
+          .limit(1);
+
+        const nextNum = last
+          ? parseInt(last.code.replace(/\D/g, '') || '0', 10) + 1
+          : 1;
+
+        code = `C${String(nextNum).padStart(5, '0')}`;
+      }
+
+      const [created] = await db
+        .insert(customers)
+        .values({
+          ...body,
+          code,
+          email: body.email || null,
+          openingBalance: String(body.openingBalance ?? 0),
+          openingFine: String(body.openingFine ?? 0),
+          openingRoopu: String(body.openingRoopu ?? 0),
+          creditLimit: String(body.creditLimit ?? 0),
+          createdBy: req.user!.id,
+        })
+        .returning();
+
+      res.status(201).json({
+        success: true,
+        data: created,
+      });
+    } catch (err) {
+      next(err);
     }
-
-    const [created] = await db
-      .insert(customers)
-      .values({
-        ...body,
-        code,
-        email: body.email || null,
-        openingBalance: String(body.openingBalance ?? 0),
-        openingFine: String(body.openingFine ?? 0),
-        openingRoopu: String(body.openingRoopu ?? 0),
-        creditLimit: String(body.creditLimit ?? 0),
-        createdBy: req.user!.id,
-      })
-      .returning();
-
-    res.status(201).json({ success: true, data: created });
-  } catch (err) {
-    next(err);
   }
-});
+);
 
 // Update
-router.put('/:id', authorize('customers.edit', 'customers.*'), async (req, res, next) => {
-  try {
-    const id = parseInt(String(req.params.id, 10);
-    const body = customerSchema.partial().parse(req.body);
+router.put(
+  '/:id',
+  authorize('customers.edit', 'customers.*'),
+  async (req, res, next) => {
+    try {
+      const id = parseInt(String(req.params.id), 10);
+      const body = customerSchema.partial().parse(req.body);
 
-    const [updated] = await db
-      .update(customers)
-      .set({
-        ...body,
-        email: body.email || null,
-        openingBalance: body.openingBalance != null ? String(body.openingBalance) : undefined,
-        openingFine: body.openingFine != null ? String(body.openingFine) : undefined,
-        openingRoopu: body.openingRoopu != null ? String(body.openingRoopu) : undefined,
-        creditLimit: body.creditLimit != null ? String(body.creditLimit) : undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(customers.id, id))
-      .returning();
+      const [updated] = await db
+        .update(customers)
+        .set({
+          ...body,
+          email: body.email || null,
+          openingBalance:
+            body.openingBalance != null
+              ? String(body.openingBalance)
+              : undefined,
+          openingFine:
+            body.openingFine != null
+              ? String(body.openingFine)
+              : undefined,
+          openingRoopu:
+            body.openingRoopu != null
+              ? String(body.openingRoopu)
+              : undefined,
+          creditLimit:
+            body.creditLimit != null
+              ? String(body.creditLimit)
+              : undefined,
+          updatedAt: new Date(),
+        })
+        .where(eq(customers.id, id))
+        .returning();
 
-    if (!updated) throw new AppError('Customer not found', 404);
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    next(err);
+      if (!updated) {
+        throw new AppError('Customer not found', 404);
+      }
+
+      res.json({
+        success: true,
+        data: updated,
+      });
+    } catch (err) {
+      next(err);
+    }
   }
-});
+);
 
 // Toggle active / inactive
-router.patch('/:id/status', authorize('customers.edit', 'customers.*'), async (req, res, next) => {
-  try {
-    const id = parseInt(String(req.params.id, 10);
-    const { status } = req.body as { status?: 'active' | 'inactive' };
-    if (status !== 'active' && status !== 'inactive') {
-      throw new AppError('Status must be active or inactive', 400);
-    }
+router.patch(
+  '/:id/status',
+  authorize('customers.edit', 'customers.*'),
+  async (req, res, next) => {
+    try {
+      const id = parseInt(String(req.params.id), 10);
+      const { status } = req.body as {
+        status?: 'active' | 'inactive';
+      };
 
-    const [updated] = await db
-      .update(customers)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(customers.id, id))
-      .returning();
-
-    if (!updated) throw new AppError('Customer not found', 404);
-    res.json({
-      success: true,
-      message: status === 'active' ? 'Customer activated' : 'Customer deactivated',
-      data: updated,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-// Soft delete (deactivate) OR hard delete (?hard=true)
-router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, res, next) => {
-  try {
-    const id = parseInt(String(req.params.id, 10);
-    const hard = String((req.query as { hard?: string }).hard || '') === 'true';
-
-    if (hard) {
-      // Check if customer has sales
-      const [saleCount] = await db
-        .select({ count: sql`COUNT(*)`.mapWith(String) })
-        .from(sales)
-        .where(eq(sales.customerId, id));
-      const salesNum = parseInt(String(saleCount?.count || '0'), 10);
-
-      // Check ledger entries
-      const [ledgerCount] = await db
-        .select({ count: sql`COUNT(*)`.mapWith(String) })
-        .from(ledgerEntries)
-        .where(
-          sql`${ledgerEntries.partyType} = 'customer' AND ${ledgerEntries.partyId} = ${id}`
-        );
-      const ledgerNum = parseInt(String(ledgerCount?.count || '0'), 10);
-
-      if (salesNum > 0 || ledgerNum > 0) {
+      if (status !== 'active' && status !== 'inactive') {
         throw new AppError(
-          `Cannot permanently delete this customer. ` +
-            `They have ${salesNum} sale(s) and ${ledgerNum} ledger entr${ledgerNum === 1 ? 'y' : 'ies'}. ` +
-            `Use "Set Inactive" instead so account history stays safe.`,
+          'Status must be active or inactive',
           400
         );
       }
 
-      const [deleted] = await db
-        .delete(customers)
+      const [updated] = await db
+        .update(customers)
+        .set({
+          status,
+          updatedAt: new Date(),
+        })
         .where(eq(customers.id, id))
         .returning();
 
-      if (!deleted) throw new AppError('Customer not found', 404);
-      return res.json({
+      if (!updated) {
+        throw new AppError('Customer not found', 404);
+      }
+
+      res.json({
         success: true,
-        message: 'Customer permanently deleted',
+        message:
+          status === 'active'
+            ? 'Customer activated'
+            : 'Customer deactivated',
+        data: updated,
       });
+    } catch (err) {
+      next(err);
     }
-
-    // Soft delete = inactive
-    const [updated] = await db
-      .update(customers)
-      .set({ status: 'inactive', updatedAt: new Date() })
-      .where(eq(customers.id, id))
-      .returning();
-
-    if (!updated) throw new AppError('Customer not found', 404);
-    res.json({ success: true, message: 'Customer deactivated' });
-  } catch (err) {
-    next(err);
   }
-});
+);
+
+// Soft delete (deactivate) OR hard delete (?hard=true)
+router.delete(
+  '/:id',
+  authorize('customers.delete', 'customers.*'),
+  async (req, res, next) => {
+    try {
+      const id = parseInt(String(req.params.id), 10);
+      const hard =
+        String(
+          (req.query as { hard?: string }).hard || ''
+        ) === 'true';
+
+      if (hard) {
+        // Check if customer has sales
+        const [saleCount] = await db
+          .select({
+            count: sql`COUNT(*)`.mapWith(String),
+          })
+          .from(sales)
+          .where(eq(sales.customerId, id));
+
+        const salesNum = parseInt(
+          String(saleCount?.count || '0'),
+          10
+        );
+
+        // Check ledger entries
+        const [ledgerCount] = await db
+          .select({
+            count: sql`COUNT(*)`.mapWith(String),
+          })
+          .from(ledgerEntries)
+          .where(
+            sql`${ledgerEntries.partyType} = 'customer' AND ${ledgerEntries.partyId} = ${id}`
+          );
+
+        const ledgerNum = parseInt(
+          String(ledgerCount?.count || '0'),
+          10
+        );
+
+        if (salesNum > 0 || ledgerNum > 0) {
+          throw new AppError(
+            `Cannot permanently delete this customer. ` +
+              `They have ${salesNum} sale(s) and ${ledgerNum} ledger entr${ledgerNum === 1 ? 'y' : 'ies'}. ` +
+              `Use "Set Inactive" instead so account history stays safe.`,
+            400
+          );
+        }
+
+        const [deleted] = await db
+          .delete(customers)
+          .where(eq(customers.id, id))
+          .returning();
+
+        if (!deleted) {
+          throw new AppError(
+            'Customer not found',
+            404
+          );
+        }
+
+        return res.json({
+          success: true,
+          message: 'Customer permanently deleted',
+        });
+      }
+
+      // Soft delete = inactive
+      const [updated] = await db
+        .update(customers)
+        .set({
+          status: 'inactive',
+          updatedAt: new Date(),
+        })
+        .where(eq(customers.id, id))
+        .returning();
+
+      if (!updated) {
+        throw new AppError(
+          'Customer not found',
+          404
+        );
+      }
+
+      res.json({
+        success: true,
+        message: 'Customer deactivated',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // ========== Customer Account / Ledger ==========
 
@@ -298,7 +405,10 @@ router.get('/lookup/list', async (_req, res, next) => {
       .where(eq(customers.status, 'active'))
       .orderBy(customers.name);
 
-    res.json({ success: true, data });
+    res.json({
+      success: true,
+      data,
+    });
   } catch (err) {
     next(err);
   }
@@ -308,6 +418,7 @@ router.get('/lookup/list', async (_req, res, next) => {
 router.get('/:id/account', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
+
     const { fromDate, toDate } = req.query as {
       fromDate?: string;
       toDate?: string;
@@ -319,7 +430,12 @@ router.get('/:id/account', async (req, res, next) => {
       .where(eq(customers.id, id))
       .limit(1);
 
-    if (!customer) throw new AppError('Customer not found', 404);
+    if (!customer) {
+      throw new AppError(
+        'Customer not found',
+        404
+      );
+    }
 
     const conditions = [
       sql`${ledgerEntries.partyType} = 'customer'`,
@@ -327,10 +443,15 @@ router.get('/:id/account', async (req, res, next) => {
     ];
 
     if (fromDate) {
-      conditions.push(sql`${ledgerEntries.entryDate} >= ${String(fromDate)}`);
+      conditions.push(
+        sql`${ledgerEntries.entryDate} >= ${String(fromDate)}`
+      );
     }
+
     if (toDate) {
-      conditions.push(sql`${ledgerEntries.entryDate} <= ${String(toDate)}`);
+      conditions.push(
+        sql`${ledgerEntries.entryDate} <= ${String(toDate)}`
+      );
     }
 
     const entries = await db
@@ -347,24 +468,47 @@ router.get('/:id/account', async (req, res, next) => {
         createdAt: ledgerEntries.createdAt,
       })
       .from(ledgerEntries)
-      .where(sql`${sql.join(conditions, sql` AND `)}`)
-      .orderBy(ledgerEntries.entryDate, ledgerEntries.id);
+      .where(
+        sql`${sql.join(conditions, sql` AND `)}`
+      )
+      .orderBy(
+        ledgerEntries.entryDate,
+        ledgerEntries.id
+      );
 
-    const openingBal = parseFloat(customer.openingBalance || '0');
-    const openingFine = parseFloat(customer.openingFine || '0');
+    const openingBal = parseFloat(
+      customer.openingBalance || '0'
+    );
+
+    const openingFine = parseFloat(
+      customer.openingFine || '0'
+    );
+
     let runBal = openingBal;
     let runFine = openingFine;
     let totalDebit = 0;
     let totalCredit = 0;
 
     const rows = entries.map((e) => {
-      const debit = parseFloat(String(e.debit || 0));
-      const credit = parseFloat(String(e.credit || 0));
-      const fDebit = parseFloat(String(e.fineDebit || 0));
-      const fCredit = parseFloat(String(e.fineCredit || 0));
+      const debit = parseFloat(
+        String(e.debit || 0)
+      );
+
+      const credit = parseFloat(
+        String(e.credit || 0)
+      );
+
+      const fDebit = parseFloat(
+        String(e.fineDebit || 0)
+      );
+
+      const fCredit = parseFloat(
+        String(e.fineCredit || 0)
+      );
 
       totalDebit += debit;
       totalCredit += credit;
+
       runBal = runBal + debit - credit;
       runFine = runFine + fDebit - fCredit;
 
@@ -374,8 +518,16 @@ router.get('/:id/account', async (req, res, next) => {
         credit,
         fineDebit: fDebit,
         fineCredit: fCredit,
-        // Jama = receipt/credit (green), Issue = payment/debit (red)
-        type: credit > 0 ? 'jama' : debit > 0 ? 'issue' : 'other',
+
+        // Jama = receipt/credit (green)
+        // Issue = payment/debit (red)
+        type:
+          credit > 0
+            ? 'jama'
+            : debit > 0
+              ? 'issue'
+              : 'other',
+
         runningBalance: runBal,
         runningFine: runFine,
       };
@@ -393,6 +545,7 @@ router.get('/:id/account', async (req, res, next) => {
           openingBalance: openingBal,
           openingFine: openingFine,
         },
+
         summary: {
           openingBalance: openingBal,
           totalDebit,
@@ -400,6 +553,7 @@ router.get('/:id/account', async (req, res, next) => {
           closingBalance: runBal,
           closingFine: runFine,
         },
+
         entries: rows,
       },
     });
