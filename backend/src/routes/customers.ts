@@ -174,7 +174,7 @@ router.post('/', authorize('customers.create', 'customers.*'), async (req, res, 
 // Update
 router.put('/:id', authorize('customers.edit', 'customers.*'), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id, 10);
     const body = customerSchema.partial().parse(req.body);
 
     const [updated] = await db
@@ -201,7 +201,7 @@ router.put('/:id', authorize('customers.edit', 'customers.*'), async (req, res, 
 // Toggle active / inactive
 router.patch('/:id/status', authorize('customers.edit', 'customers.*'), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id, 10);
     const { status } = req.body as { status?: 'active' | 'inactive' };
     if (status !== 'active' && status !== 'inactive') {
       throw new AppError('Status must be active or inactive', 400);
@@ -227,7 +227,7 @@ router.patch('/:id/status', authorize('customers.edit', 'customers.*'), async (r
 // Soft delete (deactivate) OR hard delete (?hard=true)
 router.delete('/:id', authorize('customers.delete', 'customers.*'), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id, 10);
     const hard = String((req.query as { hard?: string }).hard || '') === 'true';
 
     if (hard) {
